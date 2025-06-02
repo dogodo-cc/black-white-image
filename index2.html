@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>图片交织工具</title>
+    <style>
+        .result-container {
+            display: flex;
+            justify-content: space-evenly;
+
+            & > div {
+                width: 45%;
+                font-size: 0;
+                & img {
+                    max-width: 100%;
+                }
+                & figcaption {
+                    font-size: 14px;
+                    background-color: cadetblue;
+                }
+            }
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="images" accept="image/*" multiple onchange="processImages()">  
+    <button onclick="downloadImage()">下载图片</button>
+
+    <canvas id="resultCanvas" style="display:none;"></canvas>
+
+    <div class="result-container" >
+        <div style="background: white;">       
+            <figure>
+                <img class="resultImage" />
+                <figcaption>white</figcaption>
+            </figure>
+        </div>
+        <div style="background: black;">
+            <figure>
+                <img class="resultImage" />
+                <figcaption>black</figcaption>
+            </figure>
+        </div>
+    </div>
+</body>
+<script>
+async function processImages() {
+    const files = document.getElementById('images').files;
+    if (files.length !== 2) {
+        alert('请选择两张图片！');
+        return;
+    }
+
+    const image1 = await loadImage(files[0]);
+    const image2 = await loadImage(files[1]);
+
+    // 设置最大尺寸限制
+    const MAX_SIZE = 500; // 最大边长为1024像素
+    
+    // 计算缩放比例（保持宽高比）
+    const scale1 = Math.min(1, MAX_SIZE / Math.max(image1.width, image1.height));
+    const scale2 = Math.min(1, MAX_SIZE / Math.max(image2.width, image2.height));
+    
+    // 计算缩放后的尺寸
+    const scaledWidth1 = Math.floor(image1.width * scale1);
+    const scaledHeight1 = Math.floor(image1.height * scale1);
+    const scaledWidth2 = Math.floor(image2.width * scale2);
+    const scaledHeight2 = Math.floor(image2.height * scale2);
+
+    // 计算重叠区域的尺寸（取两张缩放后图片的最小宽高）
+    const width = Math.min(scaledWidth1, scaledWidth2);
+    const height = Math.min(scaledHeight1, scaledHeight2);
+    
+    // 计算两张图片的中心点偏移量
+    const offset1X = Math.floor((scaledWidth1 - width) / 2);
+    const offset1Y = Math.floor((scaledHeight1 - height) / 2);
+    const offset2X = Math.floor((scaledWidth2 - width) / 2);
+    const offset2Y = Math.floor((scaledHeight2 - height) / 2);
+
+    const canvas = document.getElementById('resultCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = width;
+    canvas.height = height;
+
+    // 创建临时canvas处理图片
+    const tempCanvas1 = document.createElement('canvas');
+    const tempCanvas2 = document.createElement('canvas');
+    tempCanvas1.width = scaledWidth1;
+    tempCanvas1.height = scaledHeight1;
+    tempCanvas2.width = scaledWidth2;
+    tempCanvas2.height = scaledHeight2;
+    
+    const ctx1 = tempCanvas1.getContext('2d');
+    const ctx2 = tempCanvas2.getContext('2d');
+    
+    // 先将图片绘制到临时画布上进行缩放
+    ctx1.drawImage(image1, 0, 0, image1.width, image1.height, 0, 0, scaledWidth1, scaledHeight1);
+    ctx2.drawImage(image2, 0, 0, image2.width, image2.height, 0, 0, scaledWidth2, scaledHeight2);
+
+    // 从临时画布上获取中心区域的图像数据
+    const imageData1 = ctx1.getImageData(offset1X, offset1Y, width, height);
+    const imageData2 = ctx2.getImageData(offset2X, offset2Y, width, height);
+    const resultImageData = ctx.createImageData(width, height);
+   
+     // 处理每个像素
+    for (let i = 0; i < imageData1.data.length; i += 4) {
+        const pixelIndex = i / 4;
+        const x = pixelIndex % width;
+        const y = Math.floor(pixelIndex / width);
+        
+        const useImage1 = (x + y) % 2 === 0;
+        
+        if (useImage1) {
+            const brightness = 0.299*imageData1.data[i] + 0.587*imageData1.data[i + 1] + 0.114*imageData1.data[i + 2];
+            resultImageData.data[i] = 0;
+            resultImageData.data[i + 1] = 0;
+            resultImageData.data[i + 2] = 0;
+            resultImageData.data[i + 3] = 255 - brightness;
+        } else {
+            const brightness = 0.299*imageData2.data[i] + 0.587*imageData2.data[i + 1] + 0.114*imageData2.data[i + 2];
+            resultImageData.data[i] = 255;       
+            resultImageData.data[i + 1] = 255;    
+            resultImageData.data[i + 2] = 255;    
+            resultImageData.data[i + 3] = brightness;
+        }
+    }
+
+    ctx.putImageData(resultImageData, 0, 0);
+    document.querySelectorAll('.resultImage').forEach(img => {
+        img.src = canvas.toDataURL('image/png');
+    });
+
+}
+
+function downloadImage() {
+    const canvas = document.getElementById('resultCanvas');
+    if (!canvas.toDataURL) {
+        alert('请先处理图片！');
+        return;
+    }
+    
+    const link = document.createElement('a');
+    link.download = 'processed-image.png';
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+
+function loadImage(file) {
+    return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = function() {
+                resolve(img);
+            };
+            img.onerror = function() {
+                reject(new Error('Failed to load image'));
+            };
+            img.src = URL.createObjectURL(file);
+            img.crossOrigin = 'anonymous'; // 允许跨域加载图片
+    });
+}
+</script>
+</html>

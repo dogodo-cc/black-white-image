@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片交织工具</title>
+    <style>
+        section.input-container {
+            width: 980px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+
+           & label {
+            display: block;
+            width: 400px;
+            aspect-ratio: 4/3;
+            border: 1px dashed #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            & input {
+                display: none;
+            }
+
+            & img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+            }
+
+            & .tip {
+                display: none;
+                width: 100%;
+                height: 100%;
+                
+
+                & .icon {
+                    font-size: 30px;
+                }
+            }
+
+            & img[src=""] {
+                display: none;
+
+                & + .tip {
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    color: #333;
+                    font-size: 14px;
+                }
+            }
+        }
+        }
+       
+        .arrow {
+            position: relative;
+            &::before {
+                content: '';
+                position: absolute;
+                left: 0;
+            }
+            &::after {
+                content: '';
+                position: absolute;
+                right: 0;
+            }
+        }
+
+        section.result-container {
+            width: 980px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+
+            & .result-image-box {
+                width: 400px;
+                aspect-ratio: 4/3;
+                border: 1px dashed #ccc;
+                margin-top: 30px;
+                margin-bottom: 30px;
+                & img {
+                   max-width: 100%;
+                    object-fit: contain;
+                }
+
+                & img[src=""] {
+                    display: none;
+
+                }
+            }
+        }
+    </style>
+</head>
+<body>
+    <section class="input-container">
+        <label for="imageA">
+            <input type="file" id="imageA" accept="image/*" onchange="pickImage('imageA')">  
+            <img src="" class="imageA" title="点击更换图片">
+
+            <div class="tip">
+                <div class="icon">+</div>
+                <div>请选择白色背景下需要显示的图片</div>
+            </div>
+        </label>
+        <label for="imageB">
+            <input type="file" id="imageB" accept="image/*" onchange="pickImage('imageB')">  
+            <img src="" class="imageB" title="点击更换图片">
+
+            <div class="tip">
+                <div class="icon">+</div>
+                <div>请选择黑色背景下需要显示的图片</div>
+            </div>
+        </label>
+    </section>
+
+    <section class="result-container">
+        <div class="arrow"></div>
+
+        <button onclick="processImages()">生成图片</button>
+
+        <div class="result-image-box">
+            <img class="result-image" src="" title="点击切换背景颜色">
+        </div>
+
+        <button onclick="downloadImage()">下载图片</button>
+    </section>
+   
+
+    <canvas id="resultCanvas" style="display:none;"></canvas>
+
+
+
+</body>
+<script>
+function pickImage(id) {
+    const $label = document.querySelector(`label[for="${id}"]`);
+
+    const file = $label.querySelector('input').files[0];
+    if (!file) {
+        return;
+    }
+
+    $label.querySelector('img').src = URL.createObjectURL(file);
+}
+
+async function processImages() {
+
+    const image1 = document.querySelector('.imageA');
+    const image2 = document.querySelector('.imageB');
+    if (!image1.src || !image2.src) {
+        alert('请选择两张图片！');
+        return;
+    }
+
+    // 检查图片尺寸是否相同
+    if (image1.width !== image2.width || image1.height !== image2.height) {
+        alert('请确保两张图片尺寸相同！');
+        return;
+    }
+
+    const canvas = document.getElementById('resultCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    canvas.width = image1.width;
+    canvas.height = image1.height;
+
+    // 创建临时canvas处理图片
+    const tempCanvas1 = document.createElement('canvas');
+    const tempCanvas2 = document.createElement('canvas');
+    tempCanvas1.width = image1.width;
+    tempCanvas1.height = image1.height;
+    tempCanvas2.width = image2.width;
+    tempCanvas2.height = image2.height;
+    
+    const ctx1 = tempCanvas1.getContext('2d');
+    const ctx2 = tempCanvas2.getContext('2d');
+    
+    // 将图片绘制到临时画布上
+    ctx1.drawImage(image1, 0, 0);
+    ctx2.drawImage(image2, 0, 0);
+
+    // 获取图像数据
+    const imageData1 = ctx1.getImageData(0, 0, image1.width, image1.height);
+    const imageData2 = ctx2.getImageData(0, 0, image2.width, image2.height);
+    const resultImageData = ctx.createImageData(image1.width, image1.height);
+   
+    // 处理每个像素
+    for (let i = 0; i < imageData1.data.length; i += 4) {
+        const pixelIndex = i / 4;
+        const x = pixelIndex % canvas.width;
+        const y = Math.floor(pixelIndex / canvas.width);
+        
+        const useImage1 = (x + y) % 2 === 0;
+        
+        if (useImage1) {
+            const brightness = 0.299*imageData1.data[i] + 0.587*imageData1.data[i + 1] + 0.114*imageData1.data[i + 2];
+            resultImageData.data[i] = 0;
+            resultImageData.data[i + 1] = 0;
+            resultImageData.data[i + 2] = 0;
+            resultImageData.data[i + 3] = 255 - brightness;
+        } else {
+            const brightness = 0.299*imageData2.data[i] + 0.587*imageData2.data[i + 1] + 0.114*imageData2.data[i + 2];
+            resultImageData.data[i] = 255;       
+            resultImageData.data[i + 1] = 255;    
+            resultImageData.data[i + 2] = 255;    
+            resultImageData.data[i + 3] = brightness;
+        }
+    }
+
+    ctx.putImageData(resultImageData, 0, 0);
+    document.querySelector('.result-image').src = canvas.toDataURL('image/png');
+}
+
+function downloadImage() {
+    const canvas = document.getElementById('resultCanvas');
+    if (!canvas.toDataURL) {
+        alert('请先处理图片！');
+        return;
+    }
+    
+    const link = document.createElement('a');
+    link.download = 'processed-image.png';
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+
+function loadImage(file) {
+    return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = function() {
+                resolve(img);
+                URL.revokeObjectURL(img.src); // 释放URL对象
+            };
+            img.onerror = function() {
+                reject(new Error('Failed to load image'));
+            };
+            img.src = URL.createObjectURL(file);
+            img.crossOrigin = 'anonymous'; // 允许跨域加载图片
+    });
+}
+</script>
+</html>
