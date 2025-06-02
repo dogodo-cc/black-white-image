@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>图片交织工具</title>
     <style>
+        h1 {
+            text-align: center;
+            margin: 50px auto;
+        }
         section.input-container {
             width: 980px;
             margin: 0 auto;
@@ -57,15 +61,23 @@
        
         .arrow {
             position: relative;
-            &::before {
-                content: '';
+            margin-top: 30px;
+            width: 200px;
+            height: 60px;
+            &::before, 
+            &::after {
                 position: absolute;
+                top: 0;
+                content: '➡️';
+            }
+            &::before {
                 left: 0;
+                transform: rotate(45deg);
             }
             &::after {
-                content: '';
-                position: absolute;
                 right: 0;
+                transform: rotate(135deg);
+            
             }
         }
 
@@ -75,16 +87,19 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            margin-top: 20px;
 
             & .result-image-box {
                 width: 400px;
                 aspect-ratio: 4/3;
                 border: 1px dashed #ccc;
-                margin-top: 30px;
+                border-radius: 8px;
+                overflow: hidden;
                 margin-bottom: 30px;
+                cursor: pointer;
+
                 & img {
-                   max-width: 100%;
+                    width: 100%;
+                    max-width: 100%;
                     object-fit: contain;
                 }
 
@@ -97,6 +112,7 @@
     </style>
 </head>
 <body>
+    <h1>快速制作一张黑白相间的图片</h1>
     <section class="input-container">
         <label for="imageA">
             <input type="file" id="imageA" accept="image/*" onchange="pickImage('imageA')">  
@@ -104,7 +120,7 @@
 
             <div class="tip">
                 <div class="icon">+</div>
-                <div>请选择白色背景下需要显示的图片</div>
+                <div>请选择白色背景下显示的图片</div>
             </div>
         </label>
         <label for="imageB">
@@ -113,7 +129,7 @@
 
             <div class="tip">
                 <div class="icon">+</div>
-                <div>请选择黑色背景下需要显示的图片</div>
+                <div>请选择黑色背景下显示的图片</div>
             </div>
         </label>
     </section>
@@ -121,20 +137,13 @@
     <section class="result-container">
         <div class="arrow"></div>
 
-        <button onclick="processImages()">生成图片</button>
-
-        <div class="result-image-box">
+        <div class="result-image-box" onclick="toggleBackground()" style="background-color: white;">
             <img class="result-image" src="" title="点击切换背景颜色">
+            <canvas id="resultCanvas" style="display:none;"></canvas>
         </div>
 
         <button onclick="downloadImage()">下载图片</button>
     </section>
-   
-
-    <canvas id="resultCanvas" style="display:none;"></canvas>
-
-
-
 </body>
 <script>
 function pickImage(id) {
@@ -145,15 +154,25 @@ function pickImage(id) {
         return;
     }
 
+    if($label.querySelector('img')?.src) {
+        URL.revokeObjectURL($label.querySelector('img').src)
+    }
+
     $label.querySelector('img').src = URL.createObjectURL(file);
+    processImages();
 }
 
 async function processImages() {
 
-    const image1 = document.querySelector('.imageA');
-    const image2 = document.querySelector('.imageB');
-    if (!image1.src || !image2.src) {
-        alert('请选择两张图片！');
+    const file1 = await (document.getElementById('imageA')?.files[0]);
+    const file2 = await (document.getElementById('imageB')?.files[0]);
+
+    if(!file1 || !file2) return;
+
+    const image1 = await loadImage(file1);
+    const image2 = await loadImage(file2);
+
+    if (!image1 || !image2) {
         return;
     }
 
@@ -234,6 +253,8 @@ function downloadImage() {
 
 function loadImage(file) {
     return new Promise((resolve, reject) => {
+            if(!file) return reject(new Error('file is undefine'));
+
             const img = new Image();
             img.onload = function() {
                 resolve(img);
@@ -245,6 +266,15 @@ function loadImage(file) {
             img.src = URL.createObjectURL(file);
             img.crossOrigin = 'anonymous'; // 允许跨域加载图片
     });
+}
+
+function toggleBackground() {
+    const $el = document.querySelector('.result-image-box');
+    $el.style.backgroundColor = $el.style.backgroundColor === 'white' ? 'black' : 'white';
+}
+
+function updateResult() {
+
 }
 </script>
 </html>
