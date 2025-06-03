@@ -301,7 +301,11 @@
     <section class="result-container">
       <div class="arrow">🟰</div>
 
-      <div class="result-image-box" onmousemove="mousemove(event)">
+      <div
+        class="result-image-box"
+        onmousemove="mousemove(event)"
+        ontouchmove="mousemove(event)"
+      >
         <img class="result-image" src="" />
         <div class="tip"><span>选择图片后将会自动生成...</span></div>
         <canvas id="resultCanvas" style="display: none"></canvas>
@@ -563,11 +567,18 @@
     }
 
     function mousemove(event) {
+      // event.preventDefault();
+      // event.stopPropagation();
+
+      // 判断是否是 touchmove 事件
+      const isTouch = event.type === "touchmove";
+      const clientX = isTouch ? event.touches[0].clientX : event.clientX;
+
       const $box = event.currentTarget;
       const rect = $box.getBoundingClientRect();
 
       // 计算鼠标在div内的x坐标
-      const x = event.clientX - rect.left;
+      const x = clientX - rect.left;
 
       // 计算百分比
       let percentage = (x / rect.width) * 100;
