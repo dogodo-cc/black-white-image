@@ -527,7 +527,13 @@ function mousemove(event) {
         const x = event.clientX - rect.left;
         
         // 计算百分比
-        const percentage = (x / rect.width) * 100;
+        let percentage = (x / rect.width) * 100;
+        if(percentage < 3) {
+            percentage = 0;
+        }
+        if(percentage > 97) {
+            percentage = 100
+        }
         $box.style.setProperty('--white-bg', `${percentage}%`)
         
        
